@@ -3,8 +3,9 @@
 
 %% Set-up
 
-clc; clear all; close all; % instead of close all, try clf after defining a figure
+clc; clear all; close all;
 
+% Import crash test datafile
 load('subaru_legacy_passenger_data.mat');
 
 % Checking if the angular displacement is primarily positive or negative
