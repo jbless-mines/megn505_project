@@ -12,9 +12,10 @@ load('subaru_legacy_passenger_data.mat');
 beta = cumtrapz(tdata,omega2);
 figure()
 clf;
-plot(tdata*1000,beta,'k-');
+plot(tdata*1000,beta,'k-','LineWidth',2);
 xlabel('Time (ms)')
 ylabel('Estimated head angular displacement (deg)')
+grid()
 
 % If beta is primarily positive, switch signs of omega values
 %omega1 = -omega1;
@@ -41,20 +42,23 @@ phi = v(:,3);
 figure()
 clf;
 subplot(3,1,1)
-plot(tdata*1000,psi,'k-')
+plot(tdata*1000,psi,'k-','LineWidth',2)
 ylim([-100 100])
 ylabel('\psi (deg)')
 xlabel('t (ms)')
+grid()
 subplot(3,1,2)
-plot(tdata*1000,theta,'k-')
+plot(tdata*1000,theta,'k-','LineWidth',2)
 ylim([-100 100])
 ylabel('\theta (deg)')
 xlabel('t (ms)')
+grid()
 subplot(3,1,3)
-plot(tdata*1000,phi,'k-')
+plot(tdata*1000,phi,'k-','LineWidth',2)
 ylim([-100 100])
 ylabel('\phi (deg)')
 xlabel('t (ms)')
+grid()
 
 %% Transforming acceleration data
 
@@ -89,21 +93,81 @@ Z = v(:,3);
 figure()
 clf;
 subplot(3,1,1)
-plot(tdata*1000,X,'k-')
+plot(tdata*1000,X,'k-','LineWidth',2)
 ylim([0 2])
 ylabel('X (m)')
 xlabel('t (ms)')
+grid()
 subplot(3,1,2)
-plot(tdata*1000,Y,'k-')
+plot(tdata*1000,Y,'k-','LineWidth',2)
 ylim([-.1 .2])
 ylabel('Y (m)')
 xlabel('t (ms)')
+grid()
 subplot(3,1,3)
-plot(tdata*1000,Z,'k-')
+plot(tdata*1000,Z,'k-','LineWidth',2)
 ylim([-.2 .4])
 ylabel('Z (m)')
 xlabel('t (ms)')
+grid()
 
 %% Animation of head motion
 
+% NOTE: View options include 'default', 'passenger', and 'driver'
 animate_head_motion(X,Y,Z,psi*pi/180,theta*pi/180,phi*pi/180,3,2,1,'default')
+
+%% Import and post-process vehicle acceleration data
+
+% Import data
+% NOTE: ax and axr are intended to be redundant measurements. az is
+% vertical, positive downward (hence the -1 multiplier applied later).
+vehicle_ax = readmatrix('v10150.094', 'FileType', 'text', 'Delimiter', '\t');
+vehicle_axr = readmatrix('v10150.100', 'FileType', 'text', 'Delimiter', '\t');
+vehicle_az = readmatrix('v10150.098', 'FileType', 'text', 'Delimiter', '\t');
+vehicle_ax = vehicle_ax(:, 2)*g;
+vehicle_axr = vehicle_axr(:, 2)*g;
+vehicle_az = -vehicle_az(:, 2)*g;
+
+% Process data
+vehicle_ax_mean = 0.5*(vehicle_ax+vehicle_axr);
+window = 101;
+shift = 15;
+vehicle_ax_proc = movmean(vehicle_ax_mean, window);
+vehicle_ax_proc = [zeros(shift, 1); vehicle_ax_proc(1:end-shift)];
+vehicle_ax_proc(tdata < 0 | tdata > 0.1) = 0;
+
+% Process data
+vehicle_az_proc = movmean(vehicle_az, window);
+vehicle_az_proc = [zeros(shift, 1); vehicle_az_proc(1:end-shift)];
+vehicle_az_proc(tdata < 0 | tdata > 0.1) = 0;
+
+% Keep only time >= 0
+idx = tdata >= 0;
+tdata_proc = tdata(idx);
+vehicle_ax_proc = vehicle_ax_proc(idx);
+vehicle_az_proc = vehicle_az_proc(idx);
+
+% Plot data
+figure();
+hold on;
+plot(tdata*1000, vehicle_ax_mean, 'r', 'LineWidth', 2, 'DisplayName', 'Original')
+plot(tdata_proc*1000, vehicle_ax_proc, 'k', 'LineWidth', 2, 'DisplayName', 'Processed')
+title('Vehicle "X-Direction" Acceleration')
+xlabel('Time (ms)')
+ylabel('Acceleration (m/s^2)')
+legend('Location', 'best')
+grid()
+
+% Plot data
+figure();
+hold on;
+plot(tdata*1000, vehicle_az, 'r', 'LineWidth', 2, 'DisplayName', 'Original')
+plot(tdata_proc*1000, vehicle_az_proc, 'k', 'LineWidth', 2, 'DisplayName', 'Processed')
+title('Vehicle "Z-Direction" Acceleration')
+xlabel('Time (ms)')
+ylabel('Acceleration (m/s^2)')
+legend('Location', 'best')
+grid()
+
+% Export
+save('vehicle_accel_data.mat', 'tdata_proc', 'vehicle_ax_proc', 'vehicle_az_proc');

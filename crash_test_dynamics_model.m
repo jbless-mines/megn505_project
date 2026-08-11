@@ -121,7 +121,7 @@ function animate_motion(t_sol, x_W, y_W, ...
         title(sprintf('Crash Event (t = %.3f s)', t_sol(k)));
         drawnow;
     
-        pause(0.02);
+        pause(0.01);
     end
 
 end
@@ -190,20 +190,64 @@ g = 9.81;         % m/s^2
 
 %% Determine motion at the waist
 
-% TODO: Pull this from test data instead of using a notional impulse
+% % NOTE: The commented-out stuff below can be used for notional prescribed
+% % accelerations.
+% 
+% % Prescribed base acceleration at waist (notional)
+% A_crash = 27*g;    % m/s^2 (peak acceleration)
+% T_crash = 0.12;    % s (pulse duration)
+% tspan = [0 0.3];   % s (total simulation time)
+% x_W_ddot = @(t) -(t >= 0 & t <= T_crash).*A_crash.*sin(pi*t/T_crash).^2;
+% y_W_ddot = @(t) zeros(size(t));
+% 
+% % Waist motion initial conditions (actual)
+% x_W_0 = 0;              % m
+% y_W_0 = 0;              % m
+% x_W_dot_0 = 15.64;      % m/s (34.98 mph)
+% y_W_dot_0 = 0;          % m/s
+% 
+% % Time vector
+% t = linspace(tspan(1), tspan(2), 1000);
+% 
+% % Horizontal acceleration, velocity, and position
+% x_W_ddot_vals = x_W_ddot(t);
+% x_W_dot_vals = x_W_dot_0 + cumtrapz(t, x_W_ddot_vals);
+% x_W_vals = x_W_0 + cumtrapz(t, x_W_dot_vals);
+% 
+% % Vertical acceleration, velocity, and position
+% y_W_ddot_vals = y_W_ddot(t);
+% y_W_dot_vals = y_W_dot_0 + cumtrapz(t, y_W_ddot_vals);
+% y_W_vals = y_W_0 + cumtrapz(t, y_W_dot_vals);
+% 
+% % Interpolation functions for ode45
+% x_W = @(tq) interp1(t, x_W_vals, tq, 'linear', 'extrap');
+% x_W_dot = @(tq) interp1(t, x_W_dot_vals, tq, 'linear', 'extrap');
+% y_W = @(tq) interp1(t, y_W_vals, tq, 'linear', 'extrap');
+% y_W_dot = @(tq) interp1(t, y_W_dot_vals, tq, 'linear', 'extrap');
 
-% Prescribed base acceleration at waist (notional)
-A_crash = 27*g;    % m/s^2 (peak acceleration)
-T_crash = 0.12;    % s (pulse duration)
-tspan = [0 0.3];   % s (total simulation time)
-x_W_ddot = @(t) -(t >= 0 & t <= T_crash).*A_crash.*sin(pi*t/T_crash).^2;
-y_W_ddot = @(t) zeros(size(t));
+% Prescribed horizontal base acceleration at waist
+% NOTE: The vertical component of acceleration (vehicle_az_proc) is quite
+% small.
+load('vehicle_accel_data.mat', ...
+    'tdata_proc', 'vehicle_ax_proc', 'vehicle_az_proc');
+t_data = tdata_proc;
+ax_data = vehicle_ax_proc;
+ay_data = vehicle_az_proc;
 
-% Waist motion initial conditions (actual)
-x_W_0 = 0;              % m
-y_W_0 = 0;              % m
-x_W_dot_0 = 15.64;      % m/s (34.98 mph)
-y_W_dot_0 = 0;          % m/s
+% Simulation time
+tspan = [0 0.2999];
+
+% Interpolation function for ode45
+x_W_ddot = @(tq) interp1(t_data, ax_data, tq, 'linear', 0);
+
+% No vertical acceleration
+y_W_ddot = @(tq) interp1(t_data, ay_data, tq, 'linear', 0);
+
+% Waist motion initial conditions
+x_W_0 = 0;
+y_W_0 = 0;
+x_W_dot_0 = 15.64;
+y_W_dot_0 = 0;
 
 % Time vector
 t = linspace(tspan(1), tspan(2), 1000);
@@ -224,18 +268,6 @@ x_W_dot = @(tq) interp1(t, x_W_dot_vals, tq, 'linear', 'extrap');
 y_W = @(tq) interp1(t, y_W_vals, tq, 'linear', 'extrap');
 y_W_dot = @(tq) interp1(t, y_W_dot_vals, tq, 'linear', 'extrap');
 
-%% Plot prescribed waist acceleration
-figure;
-hold on;
-plot(t, x_W_ddot_vals, 'LineWidth', 2, 'DisplayName', '$\ddot{x}_W$', 'Color', 'k');
-plot(t, y_W_ddot_vals, 'LineWidth', 2, 'DisplayName', '$\ddot{y}_W$', 'Color', 'g');
-xlabel('Time (s)');
-ylabel('Acceleration (m/s^2)')
-title('Prescribed Waist Acceleration');
-legend('Location', 'best', 'Interpreter', 'latex');
-grid on;
-xlim(tspan);
-
 %% Integrate EOMs
 
 % Initial conditions
@@ -249,14 +281,15 @@ q0 = [theta_0;
       phi_dot_0];
 
 % Solve IVP
-opts = odeset('MaxStep', 0.01, 'RelTol', 1e-6, 'AbsTol', 1e-8);
+opts = odeset('MaxStep', 0.1, 'RelTol', 1e-6, 'AbsTol', 1e-8);
 [t_sol, q_sol] = ode45( ...
     @(t, q) EOMs_Lagrange( ...
         t, q, ...
         m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
         k_N, c_N, k_A, c_A, k_S, c_S, g, ...
         theta_0, phi_0, x_W_ddot(t), y_W_ddot(t)), ...
-    tspan, q0, opts);
+    tspan, q0);
+    %tspan, q0, opts);
 
 % Extract angles and angular velocities
 theta = q_sol(:, 1);
@@ -288,13 +321,37 @@ y_H = y_W_sol + (l_T + l_N)*sin(theta) + l_H*sin(phi);
 
 %% Plotting results
 
+% Prescribed waist acceleration
+figure;
+hold on;
+plot(t*1000, x_W_ddot_vals, 'LineWidth', 2, 'DisplayName', '$\ddot{x}_W$', 'Color', 'k');
+plot(t*1000, y_W_ddot_vals, 'LineWidth', 2, 'DisplayName', '$\ddot{y}_W$', 'Color', 'g');
+xlabel('Time (ms)');
+ylabel('Acceleration (m/s^2)')
+title('Prescribed Waist Acceleration');
+legend('Location', 'best', 'Interpreter', 'latex');
+grid on;
+
 % Angles of torso and head
 figure;
 hold on;
-plot(t_sol, theta*180/pi, 'LineWidth', 2, 'DisplayName', '\theta', 'Color', 'b');
-plot(t_sol, phi*180/pi, 'LineWidth', 2, 'DisplayName', '\phi', 'Color', 'r');
-xlabel('Time (s)');
+plot(t_sol*1000, theta*180/pi, 'LineWidth', 2, 'DisplayName', '\theta', 'Color', 'b');
+plot(t_sol*1000, phi*180/pi, 'LineWidth', 2, 'DisplayName', '\phi', 'Color', 'r');
+xlabel('Time (ms)');
 ylabel('Angle (deg)');
+legend('Location', 'best');
+title('Torso and Head Angular Response');
+grid on;
+
+% X and Y of torso and head over time
+figure;
+hold on;
+plot(t_sol*1000, x_T, 'LineWidth', 2, 'DisplayName', 'x_T', 'Color', 'b');
+plot(t_sol*1000, y_T, 'LineWidth', 2, 'DisplayName', 'y_T', 'Color', 'b', 'LineStyle', '--');
+plot(t_sol*1000, x_H, 'LineWidth', 2, 'DisplayName', 'x_H', 'Color', 'r');
+plot(t_sol*1000, y_H, 'LineWidth', 2, 'DisplayName', 'y_H', 'Color', 'r', 'LineStyle', '--');
+xlabel('Time (ms)');
+ylabel('Displacement (m)');
 legend('Location', 'best');
 title('Torso and Head Angular Response');
 grid on;
@@ -311,7 +368,7 @@ title('Trajectory of Torso and Head');
 axis equal;
 grid on;
 
-% Animation of crash event
+%% Animation of crash event
 animate_motion(t_sol, x_W(t_sol), y_W(t_sol), ...
     x_T, y_T, x_N, y_N, x_H, y_H, ...
     theta, phi, l_T, l_N, l_H);
