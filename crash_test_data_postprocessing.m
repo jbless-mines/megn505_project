@@ -5,6 +5,11 @@
 
 clc; clear all; close all;
 
+% Plot settings
+set(groot, 'defaultAxesFontSize', 14)
+set(groot, 'defaultAxesTitleFontSizeMultiplier', 1.4)
+set(groot, 'defaultAxesLabelFontSizeMultiplier', 1.4)
+
 % Import crash test datafile
 load('subaru_legacy_passenger_data.mat');
 
@@ -59,6 +64,7 @@ ylim([-100 100])
 ylabel('\phi (deg)')
 xlabel('t (ms)')
 grid()
+sgtitle('Head Orientation','FontSize',16,'FontWeight','bold')
 
 %% Transforming acceleration data
 
@@ -110,6 +116,7 @@ ylim([-.2 .4])
 ylabel('Z (m)')
 xlabel('t (ms)')
 grid()
+sgtitle('Head Position','FontSize',16,'FontWeight','bold')
 
 %% Animation of head motion
 
@@ -152,7 +159,7 @@ figure();
 hold on;
 plot(tdata*1000, vehicle_ax_mean, 'r', 'LineWidth', 2, 'DisplayName', 'Original')
 plot(tdata_proc*1000, vehicle_ax_proc, 'k', 'LineWidth', 2, 'DisplayName', 'Processed')
-title('Vehicle "X-Direction" Acceleration')
+title('Vehicle Longitudinal Acceleration')
 xlabel('Time (ms)')
 ylabel('Acceleration (m/s^2)')
 legend('Location', 'best')
@@ -163,7 +170,7 @@ figure();
 hold on;
 plot(tdata*1000, vehicle_az, 'r', 'LineWidth', 2, 'DisplayName', 'Original')
 plot(tdata_proc*1000, vehicle_az_proc, 'k', 'LineWidth', 2, 'DisplayName', 'Processed')
-title('Vehicle "Z-Direction" Acceleration')
+title('Vehicle Vertical Acceleration')
 xlabel('Time (ms)')
 ylabel('Acceleration (m/s^2)')
 legend('Location', 'best')
