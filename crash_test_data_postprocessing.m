@@ -176,5 +176,19 @@ ylabel('Acceleration (m/s^2)')
 legend('Location', 'best')
 grid()
 
-% Export
-save('vehicle_accel_data.mat', 'tdata_proc', 'vehicle_ax_proc', 'vehicle_az_proc');
+%% Export processed data
+
+start_idx = find(tdata == tdata_proc(1));
+X_proc = X(start_idx:end);
+Y_proc = Y(start_idx:end);
+Z_proc = Z(start_idx:end);
+psi_proc = psi(start_idx:end);
+theta_proc = theta(start_idx:end);
+phi_proc = phi(start_idx:end);
+
+save('head_position_data.mat', ...
+    'tdata_proc', ...
+    'X_proc', 'Y_proc', 'Z_proc', ...
+    'phi_proc', 'theta_proc', 'phi_proc')
+save('vehicle_accel_data.mat', ...
+    'tdata_proc', 'vehicle_ax_proc', 'vehicle_az_proc');

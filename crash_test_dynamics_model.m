@@ -209,34 +209,58 @@ y_H_ddot = y_W_ddot(t_sol) ...
     - l_H*sin(phi).*phi_dot.^2 ...
     + l_H*cos(phi).*phi_ddot;
 
-%% Test data
+%% Import processed test data
 
-load('head_accel_test_data.mat', 't001', 'a001', 't002', 'a002');
+% load('head_accel_test_data.mat', 't001', 'a001', 't002', 'a002');
+% 
+% figure;
+% hold on;
+% plot(t001*1000, a001, 'LineWidth', 1.5, 'DisplayName', 'Test x Acceleration');
+% plot(t002*1000, a002, 'LineWidth', 1.5, 'DisplayName', 'Test y Acceleration');
+% xlabel('Time (ms)'); 
+% ylabel('Acceleration (g)'); 
+% title('Raw Test Accelerometer Data');
+% legend('Location', 'best'); grid on;
+
+% NOTE: The experimental Z-direction corresponds to the model Y-direction
+load('head_position_data.mat', ...
+    'tdata_proc', ...
+    'X_proc', 'Y_proc', 'Z_proc', ...
+    'phi_proc', 'theta_proc', 'phi_proc')
+x_H_exp = X_proc;
+y_H_exp = Z_proc;
+
+%% Simulation to test data comparison
+
+%a001_ms2 = a001*9.81;
+%a002_ms2 = a002*9.81;
+
+x_H_zeroed = x_H-x_H(1);
+y_H_zeroed = y_H-y_H(1);
+x_H_exp_zeroed = x_H_exp-x_H_exp(1);
+y_H_exp_zeroed = y_H_exp-y_H_exp(1);
 
 figure;
 hold on;
-plot(t001*1000, a001, 'LineWidth', 1.5, 'DisplayName', 'Test x Acceleration');
-plot(t002*1000, a002, 'LineWidth', 1.5, 'DisplayName', 'Test y Acceleration');
+plot(t_sol*1000, x_H_zeroed, 'r-', 'LineWidth', 2, 'DisplayName', 'Simulated x_H');
+plot(t_sol*1000, y_H_zeroed, 'r--', 'LineWidth', 2, 'DisplayName', 'Simulated y_H');
+plot(t_data*1000, x_H_exp_zeroed, 'k-', 'LineWidth', 2, 'DisplayName', 'Experimental x_H');
+plot(t_data*1000, y_H_exp_zeroed, 'k--', 'LineWidth', 2, 'DisplayName', 'Experimental y_H');
 xlabel('Time (ms)'); 
-ylabel('Acceleration (g)'); 
-title('Raw Test Accelerometer Data');
-legend('Location', 'best'); grid on;
-
-%% Simulation and test data comparison
-
-a001_ms2 = a001*9.81;
-a002_ms2 = a002*9.81;
+ylabel('Displacement (m)');
+title('Simulated and Experimental Position');
+legend('Location', 'best');
+grid on;
 
 figure;
 hold on;
-plot(t_sol*1000, x_H_ddot, 'LineWidth', 2, 'DisplayName', 'Simulated $\ddot{x}_H$');
-plot(t_sol*1000, y_H_ddot, 'LineWidth', 2, 'DisplayName', 'Simulated $\ddot{y}_H$');
-plot(t001*1000, a001_ms2, 'LineWidth', 1.5, 'DisplayName', 'Test x Acceleration');
-plot(t002*1000, a002_ms2, 'LineWidth', 1.5, 'DisplayName', 'Test y Acceleration');
-xlabel('Time (ms)'); 
-ylabel('Acceleration (m/s^2)');
-title('Simulated and Experimental Head Acceleration');
-legend('Location', 'best', 'Interpreter', 'latex'); grid on;
+plot(x_H_zeroed, y_H_zeroed, 'r-', 'LineWidth', 2, 'DisplayName', 'Simulation');
+plot(x_H_exp_zeroed, y_H_exp_zeroed, 'k-', 'LineWidth', 2, 'DisplayName', 'Experiment');
+xlabel('x (m)'); 
+ylabel('y (m)');
+title('Simulated and Experimental Position');
+legend('Location', 'best');
+grid on;
 
 %% Head acceleration
 
