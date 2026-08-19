@@ -227,8 +227,9 @@ load('head_position_data.mat', ...
     'tdata_proc', ...
     'X_proc', 'Y_proc', 'Z_proc', ...
     'phi_proc', 'theta_proc', 'phi_proc')
-x_H_exp = X_proc;
-y_H_exp = Z_proc;
+x_H_exp = X_proc;       % m
+y_H_exp = Z_proc;       % m
+phi_exp = theta_proc;   % deg
 
 %% Simulation to test data comparison
 
@@ -237,8 +238,10 @@ y_H_exp = Z_proc;
 
 x_H_zeroed = x_H-x_H(1);
 y_H_zeroed = y_H-y_H(1);
+phi_zeroed = phi-phi(1);
 x_H_exp_zeroed = x_H_exp-x_H_exp(1);
 y_H_exp_zeroed = y_H_exp-y_H_exp(1);
+phi_exp_zeroed = phi_exp-phi_exp(1);
 
 figure;
 hold on;
@@ -249,6 +252,16 @@ plot(t_data*1000, y_H_exp_zeroed, 'k--', 'LineWidth', 2, 'DisplayName', 'Experim
 xlabel('Time (ms)'); 
 ylabel('Displacement (m)');
 title('Simulated and Experimental Position');
+legend('Location', 'best');
+grid on;
+
+figure;
+hold on;
+plot(t_sol*1000, phi_zeroed*180/pi, 'r-', 'LineWidth', 2, 'DisplayName', 'Simulation');
+plot(t_data*1000, phi_exp_zeroed, 'k-', 'LineWidth', 2, 'DisplayName', 'Experiment');
+xlabel('Time (ms)'); 
+ylabel('\theta (deg)');
+title('Simulated and Experimental Pitch');
 legend('Location', 'best');
 grid on;
 
