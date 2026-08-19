@@ -5,7 +5,7 @@
 
 %% MAIN
 
-clc; clear all; close all;
+clc; clear; close all;
 
 % Input parameters
 
@@ -14,7 +14,6 @@ A = 0.7874;     % m
 B = 0.4445;     % m
 C = 0.0838;     % m
 AA = 0.3454;    % m
-BB = 0.1651;    % m
 
 % Derived body dimensions
 l_T = AA-C;             % m
@@ -51,46 +50,10 @@ g = 9.81;         % m/s^2
 
 %% Determine motion at the waist
 
-% % NOTE: The commented-out stuff below can be used for notional prescribed
-% % accelerations.
-% 
-% % Prescribed base acceleration at waist (notional)
-% A_crash = 27*g;    % m/s^2 (peak acceleration)
-% T_crash = 0.12;    % s (pulse duration)
-% tspan = [0 0.3];   % s (total simulation time)
-% x_W_ddot = @(t) -(t >= 0 & t <= T_crash).*A_crash.*sin(pi*t/T_crash).^2;
-% y_W_ddot = @(t) zeros(size(t));
-% 
-% % Waist motion initial conditions (actual)
-% x_W_0 = 0;              % m
-% y_W_0 = 0;              % m
-% x_W_dot_0 = 15.64;      % m/s (34.98 mph)
-% y_W_dot_0 = 0;          % m/s
-% 
-% % Time vector
-% t = linspace(tspan(1), tspan(2), 1000);
-% 
-% % Horizontal acceleration, velocity, and position
-% x_W_ddot_vals = x_W_ddot(t);
-% x_W_dot_vals = x_W_dot_0 + cumtrapz(t, x_W_ddot_vals);
-% x_W_vals = x_W_0 + cumtrapz(t, x_W_dot_vals);
-% 
-% % Vertical acceleration, velocity, and position
-% y_W_ddot_vals = y_W_ddot(t);
-% y_W_dot_vals = y_W_dot_0 + cumtrapz(t, y_W_ddot_vals);
-% y_W_vals = y_W_0 + cumtrapz(t, y_W_dot_vals);
-% 
-% % Interpolation functions for ode45
-% x_W = @(tq) interp1(t, x_W_vals, tq, 'linear', 'extrap');
-% x_W_dot = @(tq) interp1(t, x_W_dot_vals, tq, 'linear', 'extrap');
-% y_W = @(tq) interp1(t, y_W_vals, tq, 'linear', 'extrap');
-% y_W_dot = @(tq) interp1(t, y_W_dot_vals, tq, 'linear', 'extrap');
-
 % Prescribed horizontal base acceleration at waist
 % NOTE: The vertical component of acceleration (vehicle_az_proc) is quite
 % small.
-load('vehicle_accel_data.mat', ...
-    'tdata_proc', 'vehicle_ax_proc', 'vehicle_az_proc');
+load('vehicle_accel_data.mat', 'tdata_proc', 'vehicle_ax_proc', 'vehicle_az_proc');
 t_data = tdata_proc;
 ax_data = vehicle_ax_proc;
 ay_data = vehicle_az_proc;
@@ -124,10 +87,10 @@ y_W_dot_vals = y_W_dot_0 + cumtrapz(t, y_W_ddot_vals);
 y_W_vals = y_W_0 + cumtrapz(t, y_W_dot_vals);
 
 % Interpolation functions for ode45
-x_W = @(tq) interp1(t, x_W_vals, tq, 'linear', 'extrap');
-x_W_dot = @(tq) interp1(t, x_W_dot_vals, tq, 'linear', 'extrap');
-y_W = @(tq) interp1(t, y_W_vals, tq, 'linear', 'extrap');
-y_W_dot = @(tq) interp1(t, y_W_dot_vals, tq, 'linear', 'extrap');
+x_W = @(tq) interp1(t, x_W_vals, tq, 'linear');
+x_W_dot = @(tq) interp1(t, x_W_dot_vals, tq, 'linear');
+y_W = @(tq) interp1(t, y_W_vals, tq, 'linear');
+y_W_dot = @(tq) interp1(t, y_W_dot_vals, tq, 'linear');
 
 %% Integrate EOMs
 
@@ -142,13 +105,8 @@ q0 = [theta_0;
       phi_dot_0];
 
 % Solve IVP
-opts = odeset('MaxStep', 0.1, 'RelTol', 1e-6, 'AbsTol', 1e-8);
-[t_sol, q_sol] = ode45( ...
-    @(t, q) EOMs_Lagrange( ...
-        t, q, ...
-        m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
-        k_N, c_N, k_A, c_A, k_S, c_S, g, ...
-        theta_0, phi_0, x_W_ddot(t), y_W_ddot(t)), ...
+[t_sol, q_sol] = ode45(@(t, q) EOMs_Lagrange(t, q, m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
+        k_N, c_N, k_A, c_A, k_S, c_S, g, theta_0, phi_0, x_W_ddot(t), y_W_ddot(t)), ...
     tspan, q0);
     %tspan, q0, opts);
 
@@ -184,12 +142,10 @@ phi_ddot = zeros(size(t_sol));
 
 for k = 1:length(t_sol)
 
-    dqdt = EOMs_Lagrange( ...
-        t_sol(k), q_sol(k,:)', ...
+    dqdt = EOMs_Lagrange(t_sol(k), q_sol(k,:)', ...
         m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
         k_N, c_N, k_A, c_A, k_S, c_S, g, ...
-        theta_0, phi_0, ...
-        x_W_ddot(t_sol(k)), y_W_ddot(t_sol(k)));
+        theta_0, phi_0, x_W_ddot(t_sol(k)), y_W_ddot(t_sol(k)));
 
     theta_ddot(k) = dqdt(3);
     phi_ddot(k) = dqdt(4);
@@ -197,44 +153,24 @@ for k = 1:length(t_sol)
 end
 
 % Head acceleration from kinematics
-x_H_ddot = x_W_ddot(t_sol) ...
-    - (l_T + l_N)*cos(theta).*theta_dot.^2 ...
-    - (l_T + l_N)*sin(theta).*theta_ddot ...
-    - l_H*cos(phi).*phi_dot.^2 ...
+x_H_ddot = x_W_ddot(t_sol) - (l_T + l_N)*cos(theta).*theta_dot.^2 ...
+    - (l_T + l_N)*sin(theta).*theta_ddot - l_H*cos(phi).*phi_dot.^2 ...
     - l_H*sin(phi).*phi_ddot;
 
-y_H_ddot = y_W_ddot(t_sol) ...
-    - (l_T + l_N)*sin(theta).*theta_dot.^2 ...
-    + (l_T + l_N)*cos(theta).*theta_ddot ...
-    - l_H*sin(phi).*phi_dot.^2 ...
+y_H_ddot = y_W_ddot(t_sol) - (l_T + l_N)*sin(theta).*theta_dot.^2 ...
+    + (l_T + l_N)*cos(theta).*theta_ddot - l_H*sin(phi).*phi_dot.^2 ...
     + l_H*cos(phi).*phi_ddot;
 
 %% Import processed test data
 
-% load('head_accel_test_data.mat', 't001', 'a001', 't002', 'a002');
-% 
-% figure;
-% hold on;
-% plot(t001*1000, a001, 'LineWidth', 1.5, 'DisplayName', 'Test x Acceleration');
-% plot(t002*1000, a002, 'LineWidth', 1.5, 'DisplayName', 'Test y Acceleration');
-% xlabel('Time (ms)'); 
-% ylabel('Acceleration (g)'); 
-% title('Raw Test Accelerometer Data');
-% legend('Location', 'best'); grid on;
-
 % NOTE: The experimental Z-direction corresponds to the model Y-direction
-load('head_position_data.mat', ...
-    'tdata_proc', ...
-    'X_proc', 'Y_proc', 'Z_proc', ...
-    'phi_proc', 'theta_proc', 'phi_proc')
+load('head_position_data.mat', 'tdata_proc', 'X_proc', 'Y_proc', 'Z_proc', ...
+    'phi_proc', 'theta_proc')
 x_H_exp = X_proc;       % m
 y_H_exp = Z_proc;       % m
 phi_exp = theta_proc;   % deg
 
 %% Simulation to test data comparison
-
-%a001_ms2 = a001*9.81;
-%a002_ms2 = a002*9.81;
 
 x_H_zeroed = x_H-x_H(1);
 y_H_zeroed = y_H-y_H(1);
@@ -337,130 +273,178 @@ grid on;
 
 %% Animation of crash event
 animate_motion(t_sol, x_W(t_sol), y_W(t_sol), ...
-    x_T, y_T, x_N, y_N, x_H, y_H, ...
-    theta, phi, l_T, l_N, l_H);
+    x_T, y_T, x_N, y_N, x_H, y_H, theta, phi, l_T, l_N, l_H);
 
-%% Parameter Study
+%% Parameter optimization, cartesian product
 
 % Parameter ranges
-k_A_values = linspace(100, 1000, 10);
-c_A_values = linspace(10, 150, 10);
-k_S_values = linspace(1e4, 1e5, 10);
-c_S_values = linspace(100, 1500, 10);
+k_A_values = linspace(1, 10000, 4);
+c_A_values = linspace(1, 10000, 4);
+k_S_values = linspace(1, 10000, 4);
+c_S_values = linspace(1, 10000, 4);
 
-% Preallocate response metrics
-peak_accel_kA = zeros(size(k_A_values));
-peak_accel_cA = zeros(size(c_A_values));
-peak_accel_kS = zeros(size(k_S_values));
-peak_accel_cS = zeros(size(c_S_values));
+% Initialize best stuff
+best_error = Inf;
+best_k_A = NaN;
+best_c_A = NaN;
+best_k_S = NaN;
+best_c_S = NaN;
 
-peak_angle_kA = zeros(size(k_A_values));
-peak_angle_cA = zeros(size(c_A_values));
-peak_angle_kS = zeros(size(k_S_values));
-peak_angle_cS = zeros(size(c_S_values));
+% Number of parameter combinations
+n_combinations = length(k_A_values) * length(c_A_values) * ...
+                 length(k_S_values) * length(c_S_values);
 
-%% Vary airbag stiffness
+fprintf('Total parameter combinations: %d\n\n', n_combinations);
+
+combination = 0;
+
+%% Parameter search
 
 for i = 1:length(k_A_values)
+    for j = 1:length(c_A_values)
+        for k = 1:length(k_S_values)
+            for m = 1:length(c_S_values)
+                combination = combination + 1;
 
-    [t_p, q_p, xH_ddot_p, yH_ddot_p] = parameter_study( ...
-        m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
-        k_N, c_N, k_A_values(i), c_A, ...
-        k_S, c_S, g, theta_0, phi_0, q0, ...
-        tspan, x_W_ddot, y_W_ddot);
+                % Current parameter values
+                k_A_test = k_A_values(i);
+                c_A_test = c_A_values(j);
+                k_S_test = k_S_values(k);
+                c_S_test = c_S_values(m);
 
-    a_H = sqrt(xH_ddot_p.^2 + yH_ddot_p.^2);
+                % Solve equations of motion
+                [t_p, q_p] = ode45(@(t,q) EOMs_Lagrange(t, q, ...
+                        m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
+                        k_N, c_N, k_A_test, c_A_test, ...
+                        k_S_test, c_S_test, g, theta_0, phi_0, ...
+                        x_W_ddot(t), y_W_ddot(t)), tspan, q0);
 
-    peak_accel_kA(i) = max(a_H);
-    peak_angle_kA(i) = max(abs(q_p(:,2) - phi_0))*180/pi;
+                % Extract angles
+                theta_p = q_p(:,1);
+                phi_p = q_p(:,2);
 
+                % Calculate simulated head position
+                x_H_p = x_W(t_p) + (l_T + l_N)*cos(theta_p) + l_H*cos(phi_p);
+                y_H_p = y_W(t_p) + (l_T + l_N)*sin(theta_p) + l_H*sin(phi_p);
+
+                % Interpolate experimental data onto simulation time
+                x_exp = interp1(t_data, x_H_exp, t_p, 'linear');
+                y_exp = interp1(t_data, y_H_exp, t_p, 'linear');
+
+                % Zero initial positions
+                x_H_p = x_H_p - x_H_p(1);
+                y_H_p = y_H_p - y_H_p(1);
+
+                x_exp = x_exp - x_exp(1);
+                y_exp = y_exp - y_exp(1);
+
+                % Calculate combined x-y position RMSE
+                error = sqrt(mean((x_H_p - x_exp).^2 + (y_H_p - y_exp).^2));
+
+                % Check whether this is the best parameter set
+                if error < best_error
+                    best_error = error;
+
+                    best_k_A = k_A_test;
+                    best_c_A = c_A_test;
+                    best_k_S = k_S_test;
+                    best_c_S = c_S_test;
+                end
+            end
+        end
+    end
+
+    % Progress after each k_A value
+    fprintf('Completed k_A = %.2f N/m (%d / %d combinations)\n', ...
+        k_A_values(i), combination, n_combinations);
 end
 
-%% Vary airbag damping
+% Best fit parameters
+fprintf('       Best fit parameter set\n');
+fprintf('Airbag stiffness:       %.2f N/m\n', best_k_A);
+fprintf('Airbag damping:         %.2f N*s/m\n', best_c_A);
+fprintf('Seatbelt stiffness:     %.2f N/m\n', best_k_S);
+fprintf('Seatbelt damping:       %.2f N*s/m\n', best_c_S);
+fprintf('Position RMSE:           %.4f m\n', best_error);
 
-for i = 1:length(c_A_values)
+%% Simulate Best-Fit Parameter Set
 
-    [t_p, q_p, xH_ddot_p, yH_ddot_p] = parameter_study( ...
-        m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
-        k_N, c_N, k_A, c_A_values(i), ...
-        k_S, c_S, g, theta_0, phi_0, q0, ...
-        tspan, x_W_ddot, y_W_ddot);
+[t_best, q_best] = ode45(@(t,q) EOMs_Lagrange(t, q, ...
+        m_T, m_H, I_T, I_H, l_T, l_N, l_H, k_N, c_N, ...
+        best_k_A, best_c_A, best_k_S, best_c_S, ...
+        g, theta_0, phi_0, x_W_ddot(t), y_W_ddot(t)), tspan, q0);
 
-    a_H = sqrt(xH_ddot_p.^2 + yH_ddot_p.^2);
+% Extract angles
+theta_best = q_best(:,1);
+phi_best = q_best(:,2);
 
-    peak_accel_cA(i) = max(a_H);
-    peak_angle_cA(i) = max(abs(q_p(:,2) - phi_0))*180/pi;
+% Calculate simulated head position
+x_H_best = x_W(t_best) + (l_T + l_N)*cos(theta_best) + l_H*cos(phi_best);
+y_H_best = y_W(t_best) + (l_T + l_N)*sin(theta_best) + l_H*sin(phi_best);
 
-end
+% Zero initial simulated position
+x_H_best = x_H_best - x_H_best(1);
+y_H_best = y_H_best - y_H_best(1);
 
-%% Vary seatbelt stiffness
+% Experimental position at simulation times
+x_H_exp_best = interp1(t_data, x_H_exp, t_best, 'linear');
+y_H_exp_best = interp1(t_data, y_H_exp, t_best, 'linear');
 
-for i = 1:length(k_S_values)
+% Zero initial experimental position
+x_H_exp_best = x_H_exp_best - x_H_exp_best(1);
+y_H_exp_best = y_H_exp_best - y_H_exp_best(1);
 
-    [t_p, q_p, xH_ddot_p, yH_ddot_p] = parameter_study( ...
-        m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
-        k_N, c_N, k_A, c_A, ...
-        k_S_values(i), c_S, g, theta_0, phi_0, q0, ...
-        tspan, x_W_ddot, y_W_ddot);
+% Experimental pitch at simulation times
+phi_exp_best = interp1(t_data, phi_exp, t_best, 'linear');
 
-    a_H = sqrt(xH_ddot_p.^2 + yH_ddot_p.^2);
+% Zero initial pitch
+phi_best_zeroed = phi_best - phi_best(1);
+phi_exp_best_zeroed = phi_exp_best - phi_exp_best(1);
 
-    peak_accel_kS(i) = max(a_H);
-    peak_angle_kS(i) = max(abs(q_p(:,2) - phi_0))*180/pi;
-
-end
-
-%% Vary seatbelt damping
-
-for i = 1:length(c_S_values)
-
-    [t_p, q_p, xH_ddot_p, yH_ddot_p] = parameter_study( ...
-        m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
-        k_N, c_N, k_A, c_A, ...
-        k_S, c_S_values(i), g, theta_0, phi_0, q0, ...
-        tspan, x_W_ddot, y_W_ddot);
-
-    a_H = sqrt(xH_ddot_p.^2 + yH_ddot_p.^2);
-
-    peak_accel_cS(i) = max(a_H);
-    peak_angle_cS(i) = max(abs(q_p(:,2) - phi_0))*180/pi;
-
-end
-
-%% Parameter Study Results
+%% Plot Best-Fit Head Position
 
 figure;
+hold on;
 
-subplot(2,2,1);
-plot(k_A_values, peak_accel_kA, 'o-', 'LineWidth', 2);
-xlabel('$k_A$ (N/m)', 'Interpreter', 'latex');
-ylabel('Peak Head Acceleration (m/s$^2$)', 'Interpreter', 'latex');
-title('Effect of Airbag Stiffness');
+plot(t_best*1000, x_H_best, 'r-', 'LineWidth', 2, 'DisplayName', 'Simulated x_H');
+plot(t_best*1000, y_H_best, 'r--', 'LineWidth', 2, 'DisplayName', 'Simulated y_H');
+plot(t_best*1000, x_H_exp_best, 'k-', 'LineWidth', 2, 'DisplayName', 'Experimental x_H');
+plot(t_best*1000, y_H_exp_best, 'k--', 'LineWidth', 2, 'DisplayName', 'Experimental y_H');
+
+xlabel('Time (ms)');
+ylabel('Displacement (m)');
+title('Best-Fit Head Position');
+legend('Location', 'best');
 grid on;
 
-subplot(2,2,2);
-plot(c_A_values, peak_accel_cA, 'o-', 'LineWidth', 2);
-xlabel('$c_A$ (N$\cdot$s/m)', 'Interpreter', 'latex');
-ylabel('Peak Head Acceleration (m/s$^2$)', 'Interpreter', 'latex');
-title('Effect of Airbag Damping');
+%% Plot Best-Fit Head Trajectory
+
+figure;
+hold on;
+
+plot(x_H_best, y_H_best, 'r-', 'LineWidth', 2, 'DisplayName', 'Simulation');
+plot(x_H_exp_best, y_H_exp_best, 'k-', 'LineWidth', 2, 'DisplayName', 'Experiment');
+
+xlabel('x (m)');
+ylabel('y (m)');
+title('Best-Fit Head Trajectory');
+legend('Location', 'best');
+axis equal;
 grid on;
 
-subplot(2,2,3);
-plot(k_S_values, peak_accel_kS, 'o-', 'LineWidth', 2);
-xlabel('$k_S$ (N/m)', 'Interpreter', 'latex');
-ylabel('Peak Head Acceleration (m/s$^2$)', 'Interpreter', 'latex');
-title('Effect of Seatbelt Stiffness');
+%% Plot Best-Fit Head Pitch
+
+figure;
+hold on;
+
+plot(t_best*1000, phi_best_zeroed*180/pi, 'r-', 'LineWidth', 2, 'DisplayName', 'Simulation');
+plot(t_best*1000, phi_exp_best_zeroed, 'k-', 'LineWidth', 2, 'DisplayName', 'Experiment');
+
+xlabel('Time (ms)');
+ylabel('Pitch (deg)');
+title('Best-Fit Head Pitch');
+legend('Location', 'best');
 grid on;
-
-subplot(2,2,4);
-plot(c_S_values, peak_accel_cS, 'o-', 'LineWidth', 2);
-xlabel('$c_S$ (N$\cdot$s/m)', 'Interpreter', 'latex');
-ylabel('Peak Head Acceleration (m/s$^2$)', 'Interpreter', 'latex');
-title('Effect of Seatbelt Damping');
-grid on;
-
-sgtitle('Parameter Study: Peak Head Acceleration');
-
 
 %% FUNCTIONS
 
@@ -488,9 +472,7 @@ function dqdt = EOMs_Lagrange(~, q, m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
         theta_ddot
         phi_ddot
     ];
-
 end
-
 
 function animate_motion(t_sol, x_W, y_W, x_T, y_T, x_N, y_N, x_H, y_H, ...
     theta, phi, l_T, l_N, l_H)
@@ -568,9 +550,7 @@ function animate_motion(t_sol, x_W, y_W, x_T, y_T, x_N, y_N, x_H, y_H, ...
     
         pause(0.01);
     end
-
 end
-
 
 function [x, y] = ellipse_points(a, b, x0, y0, angle)
 
@@ -583,60 +563,4 @@ function [x, y] = ellipse_points(a, b, x0, y0, angle)
     % Rotation matrix
     x = x0 + x_local*cos(angle) - y_local*sin(angle);
     y = y0 + x_local*sin(angle) + y_local*cos(angle);
-
-end
-
-function [t_sol, q_sol, x_H_ddot, y_H_ddot] = parameter_study( ...
-    m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
-    k_N, c_N, k_A, c_A, k_S, c_S, ...
-    g, theta_0, phi_0, q0, ...
-    tspan, x_W_ddot, y_W_ddot)
-
-    % Integrate equations of motion
-    [t_sol, q_sol] = ode45( ...
-        @(t,q) EOMs_Lagrange( ...
-            t, q, ...
-            m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
-            k_N, c_N, k_A, c_A, k_S, c_S, ...
-            g, theta_0, phi_0, ...
-            x_W_ddot(t), y_W_ddot(t)), ...
-        tspan, q0);
-
-    % Extract states
-    theta = q_sol(:,1);
-    phi = q_sol(:,2);
-    theta_dot = q_sol(:,3);
-    phi_dot = q_sol(:,4);
-
-    % Evaluate angular accelerations
-    theta_ddot = zeros(size(t_sol));
-    phi_ddot = zeros(size(t_sol));
-
-    for k = 1:length(t_sol)
-
-        dqdt = EOMs_Lagrange( ...
-            t_sol(k), q_sol(k,:)', ...
-            m_T, m_H, I_T, I_H, l_T, l_N, l_H, ...
-            k_N, c_N, k_A, c_A, k_S, c_S, ...
-            g, theta_0, phi_0, ...
-            x_W_ddot(t_sol(k)), y_W_ddot(t_sol(k)));
-
-        theta_ddot(k) = dqdt(3);
-        phi_ddot(k) = dqdt(4);
-
-    end
-
-    % Head acceleration
-    x_H_ddot = x_W_ddot(t_sol) ...
-        - (l_T + l_N)*cos(theta).*theta_dot.^2 ...
-        - (l_T + l_N)*sin(theta).*theta_ddot ...
-        - l_H*cos(phi).*phi_dot.^2 ...
-        - l_H*sin(phi).*phi_ddot;
-
-    y_H_ddot = y_W_ddot(t_sol) ...
-        - (l_T + l_N)*sin(theta).*theta_dot.^2 ...
-        + (l_T + l_N)*cos(theta).*theta_ddot ...
-        - l_H*sin(phi).*phi_dot.^2 ...
-        + l_H*cos(phi).*phi_ddot;
-
 end
