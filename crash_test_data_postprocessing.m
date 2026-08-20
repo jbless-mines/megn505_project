@@ -1,5 +1,7 @@
 % MEGN505
-% Crash test data analysis
+% Final Project
+% John Blessinger & Adrian Davis
+% crash_test_test_data_postprocessing.m
 
 %% Set-up
 
@@ -121,7 +123,7 @@ sgtitle('Head Position','FontSize',16,'FontWeight','bold')
 %% Animation of head motion
 
 % NOTE: View options include 'default', 'passenger', and 'driver'
-animate_head_motion(X,Y,Z,psi*pi/180,theta*pi/180,phi*pi/180,3,2,1,'default')
+animate_head_motion(X,Y,Z,psi*pi/180,theta*pi/180,phi*pi/180,3,2,1,tdata,'passenger')
 
 %% Import and post-process vehicle acceleration data
 
@@ -192,3 +194,201 @@ save('head_position_data.mat', ...
     'phi_proc', 'theta_proc', 'phi_proc')
 save('vehicle_accel_data.mat', ...
     'tdata_proc', 'vehicle_ax_proc', 'vehicle_az_proc');
+
+%% FUNCTIONS
+
+function animate_head_motion(X, Y, Z, psi, theta, phi, r1, r2, r3, t, pov)
+
+%  t should contain the time corresponding to each frame, in seconds.
+%  For example: t = (0:length(X)-1)/1000;  % 1000 Hz data
+
+%  For simplicity, represent the head as a sphere:
+
+Rhead = 0.1;                              %  m
+[xhead, yhead, zhead] = sphere(36);       %  m
+xhead = Rhead*xhead;                       %  m
+yhead = Rhead*yhead;                       %  m
+zhead = Rhead*zhead;                       %  m
+
+%  Include two small spheres for eyes:
+
+Reye = 0.015;                              %  m
+[xeye, yeye, zeye] = sphere(36);           %  m
+xeye = Reye*xeye;                          %  m
+yeye = Reye*yeye;                          %  m
+zeye = Reye*zeye;                          %  m  
+
+alt = 120*(pi/180);                        %  rad
+azi = 30*(pi/180);                         %  rad
+
+xrighteye = xeye + Rhead*sin(alt)*cos(+azi); 
+yrighteye = yeye + Rhead*sin(alt)*sin(+azi); 
+zrighteye = zeye + Rhead*cos(alt);                   
+
+xlefteye = xeye + Rhead*sin(alt)*cos(+azi);         
+ylefteye = yeye + Rhead*sin(alt)*sin(-azi);         
+zlefteye = zeye + Rhead*cos(alt);                   
+
+%  Create a circle for drawing lines of longitude and latitude on the head:
+
+angle = linspace(0, 2*pi, 40)';             %  rad
+circle1 = Rhead*cos(angle);                 %  m
+circle2 = Rhead*sin(angle);                 %  m
+
+circlexy = [circle1, circle2, 0*circle2];   %  m
+circleyz = [0*circle1, circle1, circle2];   %  m
+circlexz = [circle1, 0*circle1, circle2];   %  m
+
+%  Set up the figure window:       
+
+figure(101)
+set(gcf, 'color', 'w')
+plot3(X(1), Y(1), Z(1))
+xlabel('\itX\rm (m)')
+set(gca, 'xdir', 'reverse')
+ylabel('\itY\rm (m)')
+if strcmpi(pov, 'default')
+    zlabel('\itZ\rm (m)            ', 'rotation', 0)
+else
+    zlabel('\itZ\rm (m)', 'rotation', 0)
+end
+set(gca, 'zdir', 'reverse')
+axis equal
+xlim([min(X)-1.2*Rhead, max(X)+1.2*Rhead])
+ylim([min(Y)-1.2*Rhead, max(Y)+1.2*Rhead])
+zlim([min(Z)-1.2*Rhead, max(Z)+1.2*Rhead])
+grid on
+
+%  Set the view based on the user input: 
+
+if strcmp(pov, 'default') == 1
+   view(-40, 20)
+elseif strcmp(pov, 'driver') == 1
+   view(0, 0)
+elseif strcmp(pov, 'passenger') == 1
+   view(180, 0)     
+else
+   view(-40, 20)
+end
+
+%  Add a title that will be updated during the animation:
+
+time_title = title(sprintf('Time = %.4f s', t(1)));
+
+%  Assemble the components to draw the head:
+
+head = hgtransform;
+
+dummy_head = surf('xdata', xhead, 'ydata', yhead, 'zdata', zhead, ...
+                  'edgecolor', 'none', 'facecolor', [1, 0.85, 0.70], ...
+                  'facealpha', 1, 'edgealpha', 1, 'parent', head);
+
+right_eye = surf('xdata', xrighteye, 'ydata', yrighteye, ...
+                 'zdata', zrighteye, 'edgecolor', 'none', ...
+                 'facecolor', 'k', 'facealpha', 1, 'edgealpha', 1, ...
+                 'parent', head);
+             
+left_eye = surf('xdata', xlefteye, 'ydata', ylefteye, ...
+                'zdata', zlefteye, 'edgecolor', 'none', ...
+                'facecolor', 'k', 'facealpha', 1, 'edgealpha', 1, ...
+                'parent', head);
+
+circle_xy = line('xdata', circlexy(:,1), 'ydata', circlexy(:,2), ...
+                 'zdata', circlexy(:,3), 'color', 'b', 'linewidth', 3, ...
+                 'parent', head);
+             
+circle_yz = line('xdata', circleyz(:,1), 'ydata', circleyz(:,2), ...
+                 'zdata', circleyz(:,3), 'color', 'r', 'linewidth', 3, ...
+                 'parent', head);
+             
+circle_xz = line('xdata', circlexz(:,1), 'ydata', circlexz(:,2), ...
+                 'zdata', circlexz(:,3), 'color', 'k', 'linewidth', 3, ...
+                 'parent', head);
+
+%  Use the provided Euler angle sequence to specify the appropriate axes
+%  of rotation:
+
+sequence = [r1, r2, r3];
+
+for k = 1:3
+    if sequence(k) == 1
+       rotation_axes(:,k) = [1, 0, 0]';
+    elseif sequence(k) == 2
+       rotation_axes(:,k) = [0, 1, 0]';
+    else
+       rotation_axes(:,k) = [0, 0, 1]';
+    end
+end
+
+%  Display the head in its initial position and orientation:
+
+head.Matrix = makehgtform('translate', [X(1), Y(1), Z(1)]', ...
+                          'axisrotate', rotation_axes(:,1), psi(1), ...
+                          'axisrotate', rotation_axes(:,2), theta(1), ...
+                          'axisrotate', rotation_axes(:,3), phi(1));
+
+drawnow
+
+%  Animate the head's motion:
+
+pause(2)
+
+% animation = VideoWriter(strcat('head-motion-', pov, '-view.avi'));
+% animation.FrameRate = 100;
+% open(animation);
+
+for k = 1:5:length(X)
+
+    head.Matrix = makehgtform('translate', [X(k), Y(k), Z(k)]', ...
+                              'axisrotate', rotation_axes(:,1), psi(k), ...
+                              'axisrotate', rotation_axes(:,2), theta(k), ...
+                              'axisrotate', rotation_axes(:,3), phi(k));
+
+    % Update the time displayed in the title:
+    time_title.String = sprintf('Time = %.4f s', t(k));
+
+    drawnow
+
+    % writeVideo(animation, getframe(gcf));
+
+end
+
+% close(animation);
+
+end
+
+function vdot = disp_from_accel(t,v,aX,aY,aZ,tdata)
+
+aX_now = interp1(tdata,aX,t);
+aY_now = interp1(tdata,aY,t);
+aZ_now = interp1(tdata,aZ,t);
+
+xdot = v(4);
+ydot = v(5);
+zdot = v(6);
+
+vdot = [v(4);
+        v(5);
+        v(6);
+        aX_now;
+        aY_now;
+        aZ_now];
+
+end
+
+
+function vdot = orientation_from_gyroscope(t,v,omega1,omega2,omega3,tdata)
+
+om1_now = interp1(tdata,omega1,t);
+om2_now = interp1(tdata,omega2,t);
+om3_now = interp1(tdata,omega3,t);
+
+psi = v(1);
+theta = v(2);
+phi = v(3);
+
+vdot = [om2_now*sind(phi)/cosd(theta) + om3_now*cosd(phi)/cosd(theta);
+        om2_now*cosd(phi) - om3_now*sind(phi);
+        om1_now + om2_now*sind(theta)*sind(phi)/cosd(theta) + om3_now*sind(theta)*cosd(phi)/cosd(theta)];
+
+end

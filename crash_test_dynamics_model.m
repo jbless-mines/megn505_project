@@ -271,10 +271,6 @@ title('Trajectory of Torso and Head');
 axis equal;
 grid on;
 
-%% Animation of crash event
-animate_motion(t_sol, x_W(t_sol), y_W(t_sol), ...
-    x_T, y_T, x_N, y_N, x_H, y_H, theta, phi, l_T, l_N, l_H);
-
 %% Parameter optimization, cartesian product
 
 % Parameter ranges
@@ -445,6 +441,43 @@ ylabel('Pitch (deg)');
 title('Best-Fit Head Pitch');
 legend('Location', 'best');
 grid on;
+
+%% Animation of crash event (best-fit)
+
+% Waist
+x_W_best = x_W(t_best);
+y_W_best = y_W(t_best);
+
+% Torso COM
+x_T_best = x_W_best + l_T*cos(theta_best);
+y_T_best = y_W_best + l_T*sin(theta_best);
+
+% Base of neck
+x_N_best = x_W_best + (l_T + l_N)*cos(theta_best);
+y_N_best = y_W_best + (l_T + l_N)*sin(theta_best);
+
+% Head COM
+x_H_best = x_W_best + (l_T + l_N)*cos(theta_best) + l_H*cos(phi_best);
+y_H_best = y_W_best + (l_T + l_N)*sin(theta_best) + l_H*sin(phi_best);
+
+% Animation
+animate_motion(t_best, x_W(t_best), y_W(t_best), ...
+   x_T_best, y_T_best, x_N_best, y_N_best, ...
+   x_H_best, y_H_best, theta_best, phi_best, l_T, l_N, l_H);
+
+% Animaton snapshots for report
+% t_still_vals = [0.082, 0.102, 0.122, 0.142, 0.162, 0.182];
+% 
+% for i=1:length(t_still_vals)
+%     t_still = t_still_vals(i);
+% 
+% animate_motion( ...
+%     t_best(t_best<=t_still), ...
+%     x_W(t_best(t_best<=t_still)), ...
+%     y_W(t_best(t_best<=t_still)), ...
+%     x_T_best, y_T_best, x_N_best, y_N_best, ...
+%     x_H_best, y_H_best, theta_best, phi_best, l_T, l_N, l_H);
+% end
 
 %% FUNCTIONS
 
